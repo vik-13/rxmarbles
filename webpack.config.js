@@ -5,33 +5,48 @@ const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const isProduction = process.env.NODE_ENV === 'production';
 const gitPackage = require('./package.json');
+const TerserPlugin = require("terser-webpack-plugin");
 
 const rxjsVersion = gitPackage.devDependencies.rxjs;
 const appVersion = gitPackage.version;
 
-let plugins = [
+const optimization = {};
+const plugins = [
+  new CopyWebpackPlugin({
+    patterns: [
+      { from: 'src/index.html' },
+      { from: 'src/index.css' },
+    ]
+  }),
   new webpack.DefinePlugin({
     RXJS_VERSION: `"${rxjsVersion}"`,
-  }),
-
-  new CopyWebpackPlugin([
-    { from: 'src/index.html' },
-    { from: 'src/index.css' },
-  ]),
-]
+  })
+];
 
 if (isProduction) {
-  plugins = plugins.concat([
-    new webpack.optimize.UglifyJsPlugin({ sourceMap: true })
-  ]);
+  optimization.minimizer = [
+    new TerserPlugin()
+  ]
 }
 
 module.exports = {
   entry: './src/app.js',
-
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        use: 'ts-loader',
+        exclude: /node_modules/,
+      },
+    ],
+  },
+  optimization,
+  resolve: {
+    extensions: [ '.tsx', '.ts', '.js' ],
+  },
   output: {
-    path: path.resolve(__dirname, 'dist'),
     filename: 'app.js',
+    path: path.resolve(__dirname, 'dist'),
   },
 
   devtool: isProduction ?
@@ -42,28 +57,7 @@ module.exports = {
     historyApiFallback: { index: '/' },
     proxy: {},
     host: '0.0.0.0',
+    port: '8081'
   },
-
-  plugins: plugins,
-
-  module: {
-    loaders: [
-      {
-        test: /\.js$/,
-        exclude: /node_modules/,
-        loader: 'babel-loader',
-        query: {
-          presets: ['es2015'],
-        }
-      },
-      {
-        test: /\.html$/,
-        loader: 'raw-loader',
-      },
-    ],
-  },
-
-  resolve: {
-    extensions: ['', '.js']
-  }
+  plugins
 };
